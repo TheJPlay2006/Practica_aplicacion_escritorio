@@ -12,15 +12,16 @@ package gui;
 import Dominio.Tarea;
 import Servicio.TareaServicio;
 import javax.swing.*;
-import java.awt.event.ActionEvent;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Stack;
 import javax.swing.table.DefaultTableModel;
 
 public class gui extends javax.swing.JFrame {
  private TareaServicio tareaServicio;
     private DefaultTableModel modeloTabla;
+     private Stack<Tarea> pilaEliminadas = new Stack<>();
     /**
      * Creates new form gui
      */
@@ -73,6 +74,7 @@ private void cargarDatos() {
         btnAlternarEstado = new javax.swing.JButton();
         btnSalir = new javax.swing.JButton();
         btnEliminarTarea = new javax.swing.JButton();
+        btnDeshacerEliminacion = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -122,21 +124,30 @@ private void cargarDatos() {
             }
         });
 
+        btnDeshacerEliminacion.setText("Deshacer eliminación");
+        btnDeshacerEliminacion.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnDeshacerEliminacionActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jScrollPane1)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(102, 102, 102)
+                .addGap(40, 40, 40)
                 .addComponent(btnAgregar)
-                .addGap(48, 48, 48)
+                .addGap(34, 34, 34)
                 .addComponent(btnEliminarTarea)
-                .addGap(57, 57, 57)
+                .addGap(40, 40, 40)
+                .addComponent(btnDeshacerEliminacion)
+                .addGap(40, 40, 40)
                 .addComponent(btnAlternarEstado)
-                .addGap(88, 88, 88)
+                .addGap(66, 66, 66)
                 .addComponent(btnSalir)
-                .addContainerGap(168, Short.MAX_VALUE))
+                .addContainerGap(99, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -147,7 +158,8 @@ private void cargarDatos() {
                     .addComponent(btnAgregar)
                     .addComponent(btnAlternarEstado)
                     .addComponent(btnSalir)
-                    .addComponent(btnEliminarTarea))
+                    .addComponent(btnEliminarTarea)
+                    .addComponent(btnDeshacerEliminacion))
                 .addGap(0, 20, Short.MAX_VALUE))
         );
 
@@ -166,23 +178,37 @@ private void cargarDatos() {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnAgregarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarActionPerformed
-         String titulo = JOptionPane.showInputDialog(this, "Ingrese el título:");
-        if (titulo == null || titulo.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "El título no puede estar vacío.");
-            return;
-        }
+        String titulo = JOptionPane.showInputDialog(this, "Ingrese el título:");
+    if (titulo == null || titulo.trim().isEmpty()) {
+        JOptionPane.showMessageDialog(this, "El título no puede estar vacío.");
+        return;
+    }
 
-        int prioridad = Integer.parseInt(JOptionPane.showInputDialog(this, "Ingrese la prioridad (1-3):"));
-        boolean especial = JOptionPane.showConfirmDialog(this, "¿Es especial?") == JOptionPane.YES_OPTION;
-        LocalDate fecha = LocalDate.now();
-
-        Tarea tarea = new Tarea(titulo, prioridad, especial, fecha);
+    int prioridad;
+    while (true) {
+        String input = JOptionPane.showInputDialog(this, "Ingrese la prioridad (1-3):");
         try {
-            tareaServicio.agregarTarea(tarea);
-            cargarDatos(); // Actualizar la tabla después de agregar
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error al agregar tarea: " + ex.getMessage());
+            prioridad = Integer.parseInt(input);
+            if (prioridad >= 1 && prioridad <= 3) {
+                break; // Salir del bucle si la prioridad es válida
+            } else {
+                JOptionPane.showMessageDialog(this, "La prioridad debe estar entre 1 y 3.");
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Por favor, ingrese un número válido.");
         }
+    }
+
+    boolean especial = JOptionPane.showConfirmDialog(this, "¿Es especial?") == JOptionPane.YES_OPTION;
+    LocalDate fecha = LocalDate.now();
+
+    Tarea tarea = new Tarea(titulo, prioridad, especial, fecha);
+    try {
+        tareaServicio.agregarTarea(tarea); // Llama al método agregarTarea del servicio
+        cargarDatos();
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "Error al agregar tarea: " + ex.getMessage());
+    }
     }//GEN-LAST:event_btnAgregarActionPerformed
 
     private void btnSalirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSalirActionPerformed
@@ -206,7 +232,7 @@ private void cargarDatos() {
     }//GEN-LAST:event_btnAlternarEstadoActionPerformed
 
     private void btnEliminarTareaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarTareaActionPerformed
-        int filaSeleccionada = jTable1.getSelectedRow();
+       int filaSeleccionada = jTable1.getSelectedRow();
     if (filaSeleccionada == -1) {
         JOptionPane.showMessageDialog(this, "Selecciona una tarea para eliminar.");
         return;
@@ -214,17 +240,48 @@ private void cargarDatos() {
 
     int idTarea = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
     try {
-        tareaServicio.eliminarTarea(idTarea);
-        cargarDatos(); // Actualizar la tabla
+        // Obtener la tarea antes de eliminarla
+        Tarea tareaEliminada = tareaServicio.obtenerTareaPorId(idTarea);
+        if (tareaEliminada != null) {
+            // Agregar la tarea a la pila
+            pilaEliminadas.push(tareaEliminada);
+
+            // Marcar la tarea como eliminada en la base de datos
+            tareaServicio.eliminarTarea(idTarea);
+
+            // Actualizar la tabla
+            cargarDatos();
+        }
     } catch (SQLException ex) {
         JOptionPane.showMessageDialog(this, "Error al eliminar la tarea: " + ex.getMessage());
     }
     }//GEN-LAST:event_btnEliminarTareaActionPerformed
 
+    private void btnDeshacerEliminacionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeshacerEliminacionActionPerformed
+        if (pilaEliminadas.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "No hay eliminaciones para deshacer.");
+        return;
+    }
+
+    // Recuperar la última tarea eliminada de la pila
+    Tarea tareaRecuperada = pilaEliminadas.pop();
+
+    try {
+        // Restaurar la tarea en la base de datos
+        tareaServicio.restaurarTarea(tareaRecuperada.getId());
+
+        // Actualizar la tabla
+        cargarDatos();
+    } catch (SQLException ex) {
+        JOptionPane.showMessageDialog(this, "Error al deshacer la eliminación: " + ex.getMessage());
+    }
+    }//GEN-LAST:event_btnDeshacerEliminacionActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnAgregar;
     private javax.swing.JButton btnAlternarEstado;
+    private javax.swing.JButton btnDeshacerEliminacion;
     private javax.swing.JButton btnEliminarTarea;
     private javax.swing.JButton btnSalir;
     private javax.swing.JPanel jPanel1;

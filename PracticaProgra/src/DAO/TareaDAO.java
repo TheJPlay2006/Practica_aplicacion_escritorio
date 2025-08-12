@@ -1,14 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
-
-/**
- *
- * @author TheJPlay2006
- */
-
 
 import Dominio.Tarea;
 import java.sql.*;
@@ -22,6 +12,7 @@ public class TareaDAO {
         this.conexion = conexion;
     }
 
+    // Método para crear la tabla si no existe
     public void crearTablaSiNoExiste() throws SQLException {
         String sql = """
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Tarea' AND xtype='U')
@@ -42,6 +33,7 @@ public class TareaDAO {
         }
     }
 
+    // Método para agregar una tarea
     public void agregar(Tarea tarea) throws SQLException {
         String sql = "INSERT INTO Tarea (titulo, prioridad, especial, fecha) VALUES (?, ?, ?, ?)";
         try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
@@ -53,38 +45,70 @@ public class TareaDAO {
         }
     }
 
+    // Método para restaurar una tarea eliminada
+    public void restaurarTarea(int id) throws SQLException {
+        String sql = "UPDATE Tarea SET eliminado = 0 WHERE id = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        }
+    }
+
+    // Método para obtener una tarea por su ID
+    public Tarea obtenerPorId(int id) throws SQLException {
+        String sql = "SELECT * FROM Tarea WHERE id = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return new Tarea(
+                    rs.getInt("id"),
+                    rs.getString("titulo"),
+                    rs.getInt("prioridad"),
+                    rs.getBoolean("estado"),
+                    rs.getBoolean("especial"),
+                    rs.getDate("fecha") != null ? rs.getDate("fecha").toLocalDate() : null
+                );
+            }
+            return null; // Retorna null si no se encuentra la tarea
+        }
+    }
+
+    // Método para listar todas las tareas activas
     public List<Tarea> listar() throws SQLException {
         List<Tarea> tareas = new ArrayList<>();
         String sql = "SELECT * FROM Tarea WHERE eliminado = 0 ORDER BY id";
         try (Statement stmt = conexion.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 Tarea tarea = new Tarea(
+                    rs.getInt("id"),
                     rs.getString("titulo"),
                     rs.getInt("prioridad"),
+                    rs.getBoolean("estado"),
                     rs.getBoolean("especial"),
                     rs.getDate("fecha") != null ? rs.getDate("fecha").toLocalDate() : null
                 );
-                tarea.setId(rs.getInt("id"));
-                tarea.setEstado(rs.getBoolean("estado"));
                 tareas.add(tarea);
             }
         }
         return tareas;
     }
-    
+
+    // Método para alternar el estado de una tarea
     public void alternarEstado(int id) throws SQLException {
-    String sql = "UPDATE Tarea SET estado = ~estado WHERE id = ?";
-    try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
-        pstmt.setInt(1, id);
-        pstmt.executeUpdate();
+        String sql = "UPDATE Tarea SET estado = ~estado WHERE id = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        }
     }
-}
-    
+
+    // Método para eliminar una tarea (eliminación lógica)
     public void eliminarTarea(int id) throws SQLException {
-    String sql = "UPDATE Tarea SET eliminado = 1 WHERE id = ?";
-    try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
-        pstmt.setInt(1, id);
-        pstmt.executeUpdate();
+        String sql = "UPDATE Tarea SET eliminado = 1 WHERE id = ?";
+        try (PreparedStatement pstmt = conexion.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        }
     }
-}
 }
