@@ -9,13 +9,42 @@ package Main;
  *
  * @author TheJPlay2006
  */
-public class Main {
 
-    /**
-     * @param args the command line arguments
-     */
+import DAO.TareaDAO;
+import Servicio.TareaServicio;
+import gui.gui;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import javax.swing.SwingUtilities;
+
+public class Main {
+    private static final String URL = "jdbc:sqlserver://localhost\\SQLEXPRESS;"
+            + "databaseName=AgendaDB;"
+            + "integratedSecurity=true;"
+            + "encrypt=true;"
+            + "trustServerCertificate=true;";
+
     public static void main(String[] args) {
-        // TODO code application logic here
+        try {
+            // Conexión a la base de datos
+            Connection conexion = DriverManager.getConnection(URL);
+            TareaDAO tareaDAO = new TareaDAO(conexion);
+
+            // Crear la tabla si no existe
+            tareaDAO.crearTablaSiNoExiste();
+
+            // Inicializar capas
+            TareaServicio tareaService = new TareaServicio(tareaDAO);
+
+            // Abrir la GUI
+            SwingUtilities.invokeLater(() -> {
+                gui ventana = new gui(tareaService);
+                ventana.setVisible(true); // Hacer visible la ventana
+            });
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
-    
 }
